@@ -18,8 +18,9 @@
 - [ ] Show how many players have already submitted during an active round (e.g. "2 / 4 done")
 - [ ] Notify all players when someone hits "Done" early (currently only the timer changes)
 - [ ] Animation when the letter is being chosen.. don't just let it pop up
-- [ ] While skipping through the answers, display a information how much points each player will get
+- [x] While skipping through the answers, display a information how much points each player will get
   - 5 for duplicates, 10 for unique (maybe later 20 for upvoted by every other player)
+- [ ] Ability to just close the current game and start a new one (return to homepage at any time)
 
 ### UX
 - [x] Generate a real QR code that encodes the join URL (`/join/<roomCode>`)
@@ -31,8 +32,7 @@
 - [ ] Let the admin change settings between rounds without restarting the whole game
 
 ### Technical
-- [ ] Reconnect handling — rejoin the active game automatically after phone wakes up or briefly loses connection
-- [ ] Prevent the screen from going to sleep during an active round (Wake Lock API)
+- [x] Reconnect handling — rejoin the active game automatically after phone wakes up or briefly loses connection
 
 ### Deployment
 - [ ] Create a Dockerfile etc. and GitHub Action, so I can let the game run on my Homeserver :D

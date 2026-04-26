@@ -37,14 +37,14 @@ The single source of truth for TypeScript types and game constants used by both 
 
 Stateless in-memory game server. All game data lives in a `Map` — no database required for the MVP.
 
-- `index.ts` — Creates the Express app and Socket.IO server, binds to port 3001
-- `gameManager.ts` — CRUD for active games: create, join, remove players, handle disconnects and admin handover
+- `index.ts` — Creates the Express app and Socket.IO server, binds to port 3001. Contains a Socket.IO middleware that reads the stable player ID from the auth handshake and automatically rejoins the player to their active game on reconnect.
+- `gameManager.ts` — CRUD for active games: create, join, remove players, handle disconnects and admin handover. Each player has a stable UUID (`player.id`) that is independent of the socket ID and persists across reconnections.
 - `gameLogic.ts` — Pure game logic: letter selection, timer acceleration, score calculation, state serialization
-- `socketHandlers.ts` — Registers all Socket.IO event listeners for a connected socket
+- `socketHandlers.ts` — Registers all Socket.IO event listeners for a connected socket. Lobby disconnects use a 30-second grace period before removing the player, allowing reconnect.
 
 ### `packages/client`
 
-Single-page React app. Navigation between screens is handled by a state machine in `GameContext` (no router needed — the server drives all transitions).
+Single-page React app. Navigation between screens is handled by a state machine in `GameContext` (no router needed — the server drives all transitions). The stable player ID received from the server is persisted in `localStorage` and sent back in the Socket.IO auth handshake on every reconnect, enabling automatic session recovery after a phone screen goes off or a brief network interruption.
 
 ```
 src/
@@ -110,9 +110,10 @@ The server is the single source of truth. Clients never transition screens on th
 |---|---|---|
 | `game-created` | `{ roomCode, gameState, myPlayerId }` | Room created successfully |
 | `game-joined` | `{ gameState, myPlayerId }` | Joined a room successfully |
+| `game-rejoined` | `{ gameState, myPlayerId }` | Automatically rejoined after reconnect (triggered by auth handshake) |
 | `error` | `{ message }` | Something went wrong |
 | `player-joined` | `{ players }` | Updated player list |
-| `player-left` | `{ players }` | Player disconnected from lobby |
+| `player-left` | `{ players }` | Player removed from lobby (after 30 s disconnect grace period) |
 | `settings-updated` | `{ settings }` | Admin changed game settings |
 | `round-started` | `{ letter, roundNumber, endTime, gameState }` | Round begins |
 | `player-finished` | `{ playerId, newEndTime }` | A player submitted early, timer shortened |
