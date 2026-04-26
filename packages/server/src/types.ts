@@ -1,0 +1,30 @@
+import type { GameSettings, GamePhase, PlayerAnswers } from '@stadt-land-fluss/shared';
+
+export interface ServerPlayer {
+  id: string;
+  socketId: string;
+  name: string;
+  emoji: string;
+  isAdmin: boolean;
+  isConnected: boolean;
+  hasSubmitted: boolean;
+  hasDone: boolean;
+}
+
+export interface ServerGame {
+  roomCode: string;
+  players: ServerPlayer[];
+  settings: GameSettings;
+  phase: GamePhase;
+  currentRound: number;
+  usedLetters: string[];
+  currentLetter: string;
+  endTime: number;
+  roundTimer: ReturnType<typeof setTimeout> | null;
+  timerAccelerated: boolean;
+  answers: Map<string, Record<string, string>>;
+  votes: Map<string, boolean>;
+  scores: Map<string, number>;
+  roundScores: Map<string, number>;
+  votingCategoryIndex: number;
+}
