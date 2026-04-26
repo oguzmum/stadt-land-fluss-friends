@@ -12,7 +12,7 @@
 ## ToDos
 
 ### Gameplay
-- [ ] Show all answers across all categories at once after a round instead of going through them one by one??
+- [x] Show all answers across all categories in the final score display (added a tab with Points and Answers so players can switch as they wish :D)
 - [ ] Keep answers visible on the scoreboard so players can review them before the admin starts the next round
 - [ ] Highlight duplicate answers during voting so players can spot them easily
 - [ ] Show how many players have already submitted during an active round (e.g. "2 / 4 done")
