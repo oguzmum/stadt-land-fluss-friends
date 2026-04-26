@@ -82,6 +82,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [finishedNotification, setFinishedNotification] = useState<{ playerId: string; newEndTime: number; ts: number } | null>(null);
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
+  const hasLeftRef = useRef(false);
 
   useEffect(() => {
     // auth callback is invoked on every connection attempt — reads the latest stored ID
@@ -98,12 +99,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     // Server auto-rejoined us via auth handshake
     socket.on('game-rejoined', ({ gameState, myPlayerId }) => {
+      if (hasLeftRef.current) return;
       setGameState(gameState);
       setMyPlayerId(myPlayerId);
       setScreen(phaseToScreen(gameState.phase));
     });
 
     socket.on('game-created', ({ gameState, myPlayerId }) => {
+      hasLeftRef.current = false;
       savePlayerId(myPlayerId);
       setGameState(gameState);
       setMyPlayerId(myPlayerId);
@@ -111,6 +114,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
 
     socket.on('game-joined', ({ gameState, myPlayerId }) => {
+      hasLeftRef.current = false;
       savePlayerId(myPlayerId);
       setGameState(gameState);
       setMyPlayerId(myPlayerId);
@@ -126,44 +130,53 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
 
     socket.on('settings-updated', ({ settings }) => {
+      if (hasLeftRef.current) return;
       setGameState(prev => prev ? { ...prev, settings } : prev);
     });
 
     socket.on('round-started', ({ gameState }) => {
+      if (hasLeftRef.current) return;
       setGameState(gameState);
       setScreen('reveal');
     });
 
     socket.on('player-finished', ({ playerId, newEndTime }) => {
+      if (hasLeftRef.current) return;
       setGameState(prev => prev ? { ...prev, endTime: newEndTime } : prev);
       setFinishedNotification({ playerId, newEndTime, ts: Date.now() });
     });
 
     socket.on('round-ended', ({ gameState }) => {
+      if (hasLeftRef.current) return;
       setGameState(gameState);
       setScreen('voting');
     });
 
     socket.on('vote-update', ({ votes }) => {
+      if (hasLeftRef.current) return;
       setGameState(prev => prev ? { ...prev, votes } : prev);
     });
 
     socket.on('category-advanced', ({ votingCategoryIndex }) => {
+      if (hasLeftRef.current) return;
       setGameState(prev => prev ? { ...prev, votingCategoryIndex } : prev);
     });
 
     socket.on('round-scores', ({ scores, roundScores, gameState }) => {
+      if (hasLeftRef.current) return;
       setGameState({ ...gameState, roundScores, scores });
       setScreen('scoreboard');
     });
 
     socket.on('game-over', ({ finalScores, gameState }) => {
+      if (hasLeftRef.current) return;
       clearPlayerId();
       setGameState({ ...gameState, scores: finalScores });
       setScreen('scoreboard');
     });
 
     socket.on('lobby-reset', ({ gameState }) => {
+      if (hasLeftRef.current) return;
       setGameState(gameState);
       setScreen('lobby');
     });
@@ -232,11 +245,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const leaveGame = useCallback(() => {
     if (!window.confirm('Spiel wirklich verlassen?')) return;
+    hasLeftRef.current = true;
+    emit('leave-game');
     clearPlayerId();
+    setFinishedNotification(null);
     setGameState(null);
     setMyPlayerId(null);
     setScreen('home');
-  }, []);
+  }, [emit]);
 
   return (
     <GameContext.Provider value={{

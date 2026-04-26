@@ -66,6 +66,7 @@ export interface GameState {
 export interface ClientToServerEvents {
   'create-game': (data: { nickname: string; settings: GameSettings }) => void;
   'join-game': (data: { roomCode: string; nickname: string }) => void;
+  'leave-game': () => void;
   'update-settings': (data: Partial<GameSettings>) => void;
   'start-game': () => void;
   'submit-answers': (data: { answers: Record<string, string> }) => void;

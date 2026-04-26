@@ -101,11 +101,20 @@ export function removePlayer(game: ServerGame, socketId: string): void {
   const idx = game.players.findIndex(p => p.socketId === socketId);
   if (idx === -1) return;
 
-  if (game.players[idx].disconnectTimer) {
-    clearTimeout(game.players[idx].disconnectTimer);
+  const player = game.players[idx];
+
+  if (player.disconnectTimer) {
+    clearTimeout(player.disconnectTimer);
   }
 
-  const wasAdmin = game.players[idx].isAdmin;
+  game.answers.delete(player.id);
+  game.scores.delete(player.id);
+  game.roundScores.delete(player.id);
+  for (const key of Array.from(game.votes.keys())) {
+    if (key.endsWith(`_${player.id}`)) game.votes.delete(key);
+  }
+
+  const wasAdmin = player.isAdmin;
   game.players.splice(idx, 1);
 
   if (wasAdmin && game.players.length > 0) {

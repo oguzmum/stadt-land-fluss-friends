@@ -51,6 +51,29 @@ export function registerHandlers(io: GameServer, socket: GameSocket): void {
     });
   });
 
+  // ── Leave Game ─────────────────────────────────────────────
+  socket.on('leave-game', () => {
+    const game = gameManager.getGameBySocketId(socket.id);
+    if (!game) return;
+
+    const roomCode = game.roomCode;
+    gameManager.removePlayer(game, socket.id);
+    socket.leave(roomCode);
+
+    if (game.players.length === 0) return;
+
+    io.to(roomCode).emit('player-left', {
+      players: game.players.map(p => ({
+        id: p.id, name: p.name, emoji: p.emoji,
+        isAdmin: p.isAdmin, isConnected: p.isConnected,
+      })),
+    });
+
+    if (game.phase === 'playing' && game.players.every(p => p.hasSubmitted)) {
+      endRound(io, game);
+    }
+  });
+
   // ── Update Settings ────────────────────────────────────────
   socket.on('update-settings', (data) => {
     const game = gameManager.getGameBySocketId(socket.id);
