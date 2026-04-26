@@ -13,6 +13,9 @@ function parseInitialScreen(): { screen: AppScreen; roomCode: string } {
   return { screen: 'home', roomCode: '' };
 }
 
+// Evaluated once at module load — avoids React StrictMode double-invocation bug
+const INITIAL = parseInitialScreen();
+
 interface GameContextType {
   screen: AppScreen;
   gameState: GameState | null;
@@ -40,9 +43,8 @@ const GameContext = createContext<GameContextType | null>(null);
 const SOCKET_URL = import.meta.env.VITE_SERVER_URL || '';
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
-  const initial = parseInitialScreen();
-  const [screen, setScreen] = useState<AppScreen>(initial.screen);
-  const [initialRoomCode] = useState(initial.roomCode);
+  const [screen, setScreen] = useState<AppScreen>(INITIAL.screen);
+  const [initialRoomCode] = useState(INITIAL.roomCode);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
