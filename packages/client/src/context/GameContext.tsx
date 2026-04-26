@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { GameState, ClientToServerEvents, ServerToClientEvents, GameSettings } from '@stadt-land-fluss/shared';
+import type { GameState, ClientToServerEvents, ServerToClientEvents, GameSettings, GamePhase } from '@stadt-land-fluss/shared';
 
 export type AppScreen = 'home' | 'create' | 'join' | 'lobby' | 'reveal' | 'game' | 'voting' | 'scoreboard';
 
@@ -15,6 +15,35 @@ function parseInitialScreen(): { screen: AppScreen; roomCode: string } {
 
 // Evaluated once at module load — avoids React StrictMode double-invocation bug
 const INITIAL = parseInitialScreen();
+
+// ── Persistent player identity ──────────────────────────────
+
+const PLAYER_ID_KEY = 'slf-pid';
+
+function loadPlayerId(): string {
+  return localStorage.getItem(PLAYER_ID_KEY) ?? '';
+}
+
+function savePlayerId(id: string) {
+  localStorage.setItem(PLAYER_ID_KEY, id);
+}
+
+function clearPlayerId() {
+  localStorage.removeItem(PLAYER_ID_KEY);
+}
+
+function phaseToScreen(phase: GamePhase): AppScreen {
+  switch (phase) {
+    case 'lobby':      return 'lobby';
+    case 'playing':    return 'game';
+    case 'voting':     return 'voting';
+    case 'scoreboard':
+    case 'finished':   return 'scoreboard';
+    default:           return 'game';
+  }
+}
+
+// ── Context type ────────────────────────────────────────────
 
 interface GameContextType {
   screen: AppScreen;
@@ -40,7 +69,7 @@ interface GameContextType {
 
 const GameContext = createContext<GameContextType | null>(null);
 
-const SOCKET_URL = import.meta.env.VITE_SERVER_URL || '';
+const SOCKET_URL = import.meta.env.VITE_SERVER_URL ?? '';
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [screen, setScreen] = useState<AppScreen>(INITIAL.screen);
@@ -52,7 +81,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { autoConnect: true });
+    // auth callback is invoked on every connection attempt — reads the latest stored ID
+    const socket = io(SOCKET_URL, {
+      autoConnect: true,
+      auth: (cb) => cb({ playerId: loadPlayerId() }),
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => setIsConnected(true));
@@ -60,13 +93,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     socket.on('error', ({ message }) => setError(message));
 
-    socket.on('game-created', ({ roomCode, gameState, myPlayerId }) => {
+    // Server auto-rejoined us via auth handshake
+    socket.on('game-rejoined', ({ gameState, myPlayerId }) => {
+      setGameState(gameState);
+      setMyPlayerId(myPlayerId);
+      setScreen(phaseToScreen(gameState.phase));
+    });
+
+    socket.on('game-created', ({ gameState, myPlayerId }) => {
+      savePlayerId(myPlayerId);
       setGameState(gameState);
       setMyPlayerId(myPlayerId);
       setScreen('lobby');
     });
 
     socket.on('game-joined', ({ gameState, myPlayerId }) => {
+      savePlayerId(myPlayerId);
       setGameState(gameState);
       setMyPlayerId(myPlayerId);
       setScreen('lobby');
@@ -84,17 +126,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setGameState(prev => prev ? { ...prev, settings } : prev);
     });
 
-    socket.on('round-started', ({ letter, roundNumber, endTime, gameState }) => {
+    socket.on('round-started', ({ gameState }) => {
       setGameState(gameState);
       setScreen('reveal');
-      // Reveal component handles transition to 'game' via goTo
     });
 
-    socket.on('player-finished', ({ playerId, newEndTime }) => {
+    socket.on('player-finished', ({ newEndTime }) => {
       setGameState(prev => prev ? { ...prev, endTime: newEndTime } : prev);
     });
 
-    socket.on('round-ended', ({ answers, gameState }) => {
+    socket.on('round-ended', ({ gameState }) => {
       setGameState(gameState);
       setScreen('voting');
     });
@@ -113,6 +154,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
 
     socket.on('game-over', ({ finalScores, gameState }) => {
+      clearPlayerId();
       setGameState({ ...gameState, scores: finalScores });
       setScreen('scoreboard');
     });
@@ -122,7 +164,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setScreen('lobby');
     });
 
-    return () => { socket.disconnect(); };
+    // Force-reconnect when the tab becomes visible again (covers phone wake-up)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !socket.connected) {
+        socket.connect();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      socket.disconnect();
+    };
   }, []);
 
   const emit = useCallback(<E extends keyof ClientToServerEvents>(

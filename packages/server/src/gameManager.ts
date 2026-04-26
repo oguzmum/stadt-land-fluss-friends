@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import type { ServerGame, ServerPlayer } from './types';
 import { ROOM_CODE_LENGTH, PLAYER_EMOJIS, DEFAULT_CATEGORIES, DEFAULT_ROUND_TIME, DEFAULT_TOTAL_ROUNDS } from '@stadt-land-fluss/shared';
 
@@ -22,8 +23,9 @@ function pickEmoji(usedEmojis: string[]): string {
 
 export function createGame(socketId: string, nickname: string, settings: ServerGame['settings']): ServerGame {
   const roomCode = generateRoomCode();
+  const stableId = randomUUID();
   const player: ServerPlayer = {
-    id: socketId,
+    id: stableId,
     socketId,
     name: nickname,
     emoji: pickEmoji([]),
@@ -45,7 +47,7 @@ export function createGame(socketId: string, nickname: string, settings: ServerG
     timerAccelerated: false,
     answers: new Map(),
     votes: new Map(),
-    scores: new Map([[socketId, 0]]),
+    scores: new Map([[stableId, 0]]),
     roundScores: new Map(),
     votingCategoryIndex: 0,
   };
@@ -60,8 +62,9 @@ export function joinGame(roomCode: string, socketId: string, nickname: string): 
   if (game.players.length >= 10) return null;
 
   const usedEmojis = game.players.map(p => p.emoji);
+  const stableId = randomUUID();
   const player: ServerPlayer = {
-    id: socketId,
+    id: stableId,
     socketId,
     name: nickname,
     emoji: pickEmoji(usedEmojis),
@@ -71,7 +74,7 @@ export function joinGame(roomCode: string, socketId: string, nickname: string): 
     hasDone: false,
   };
   game.players.push(player);
-  game.scores.set(socketId, 0);
+  game.scores.set(stableId, 0);
   return { game, player };
 }
 
@@ -86,9 +89,21 @@ export function getGameBySocketId(socketId: string): ServerGame | undefined {
   return undefined;
 }
 
+export function findPlayerByStableId(playerId: string): { game: ServerGame; player: ServerPlayer } | undefined {
+  for (const game of games.values()) {
+    const player = game.players.find(p => p.id === playerId);
+    if (player) return { game, player };
+  }
+  return undefined;
+}
+
 export function removePlayer(game: ServerGame, socketId: string): void {
   const idx = game.players.findIndex(p => p.socketId === socketId);
   if (idx === -1) return;
+
+  if (game.players[idx].disconnectTimer) {
+    clearTimeout(game.players[idx].disconnectTimer);
+  }
 
   const wasAdmin = game.players[idx].isAdmin;
   game.players.splice(idx, 1);
@@ -108,9 +123,25 @@ export function markDisconnected(game: ServerGame, socketId: string): void {
   if (player) player.isConnected = false;
 }
 
-export function markReconnected(game: ServerGame, socketId: string): void {
-  const player = game.players.find(p => p.socketId === socketId);
-  if (player) player.isConnected = true;
+export function rejoinGame(
+  roomCode: string,
+  playerId: string,
+  newSocketId: string,
+): { game: ServerGame; player: ServerPlayer } | null {
+  const game = games.get(roomCode);
+  if (!game) return null;
+
+  const player = game.players.find(p => p.id === playerId);
+  if (!player) return null;
+
+  if (player.disconnectTimer) {
+    clearTimeout(player.disconnectTimer);
+    player.disconnectTimer = undefined;
+  }
+
+  player.socketId = newSocketId;
+  player.isConnected = true;
+  return { game, player };
 }
 
 export function deleteGame(roomCode: string): void {

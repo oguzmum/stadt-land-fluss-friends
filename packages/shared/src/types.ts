@@ -79,6 +79,7 @@ export interface ClientToServerEvents {
 export interface ServerToClientEvents {
   'game-created': (data: { roomCode: string; gameState: GameState; myPlayerId: string }) => void;
   'game-joined': (data: { gameState: GameState; myPlayerId: string }) => void;
+  'game-rejoined': (data: { gameState: GameState; myPlayerId: string }) => void;
   'error': (data: { message: string }) => void;
   'player-joined': (data: { players: Player[] }) => void;
   'player-left': (data: { players: Player[] }) => void;

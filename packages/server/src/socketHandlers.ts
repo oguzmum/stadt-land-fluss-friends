@@ -27,7 +27,7 @@ export function registerHandlers(io: GameServer, socket: GameSocket): void {
     socket.emit('game-created', {
       roomCode: game.roomCode,
       gameState: toGameState(game),
-      myPlayerId: socket.id,
+      myPlayerId: game.players[0].id,
     });
   });
 
@@ -41,7 +41,7 @@ export function registerHandlers(io: GameServer, socket: GameSocket): void {
     socket.join(roomCode.toUpperCase());
     socket.emit('game-joined', {
       gameState: toGameState(result.game),
-      myPlayerId: socket.id,
+      myPlayerId: result.player.id,
     });
     socket.to(roomCode.toUpperCase()).emit('player-joined', {
       players: result.game.players.map(p => ({
@@ -86,9 +86,9 @@ export function registerHandlers(io: GameServer, socket: GameSocket): void {
     player.hasSubmitted = true;
     const trimmedAnswers: Record<string, string> = {};
     for (const [catId, answer] of Object.entries(answers)) {
-      trimmedAnswers[catId] = answer.trim();
+      trimmedAnswers[catId] = isAnswerValid(answer.trim(), game.currentLetter) ? answer.trim() : '';
     }
-    game.answers.set(socket.id, trimmedAnswers);
+    game.answers.set(player.id, trimmedAnswers);
 
     const allSubmitted = game.players.every(p => p.hasSubmitted);
     if (allSubmitted) endRound(io, game);
@@ -103,7 +103,7 @@ export function registerHandlers(io: GameServer, socket: GameSocket): void {
     player.hasDone = true;
 
     const newEndTime = accelerateTimer(game);
-    io.to(game.roomCode).emit('player-finished', { playerId: socket.id, newEndTime });
+    io.to(game.roomCode).emit('player-finished', { playerId: player.id, newEndTime });
   });
 
   // ── Submit Vote ────────────────────────────────────────────
@@ -134,7 +134,6 @@ export function registerHandlers(io: GameServer, socket: GameSocket): void {
   });
 
   // ── Next Round ─────────────────────────────────────────────
-  // Called from Voting to show scores, OR from Scoreboard to start next round
   socket.on('next-round', () => {
     const game = gameManager.getGameBySocketId(socket.id);
     if (!game) return;
@@ -187,14 +186,22 @@ export function registerHandlers(io: GameServer, socket: GameSocket): void {
     });
 
     if (game.phase === 'lobby') {
-      gameManager.removePlayer(game, socket.id);
-      if (game.players.length > 0) {
-        io.to(game.roomCode).emit('player-left', {
-          players: game.players.map(p => ({
-            id: p.id, name: p.name, emoji: p.emoji,
-            isAdmin: p.isAdmin, isConnected: p.isConnected,
-          })),
-        });
+      // Give disconnected players 30 s to reconnect before removing them
+      const player = game.players.find(p => p.socketId === socket.id);
+      if (player) {
+        const oldSocketId = socket.id;
+        player.disconnectTimer = setTimeout(() => {
+          if (game.phase !== 'lobby') return;
+          gameManager.removePlayer(game, oldSocketId);
+          if (game.players.length > 0) {
+            io.to(game.roomCode).emit('player-left', {
+              players: game.players.map(p => ({
+                id: p.id, name: p.name, emoji: p.emoji,
+                isAdmin: p.isAdmin, isConnected: p.isConnected,
+              })),
+            });
+          }
+        }, 30_000);
       }
     }
   });
@@ -230,7 +237,7 @@ function endRound(io: GameServer, game: ReturnType<typeof gameManager.getGameByS
       playerId: p.id,
       playerName: p.name,
       playerEmoji: p.emoji,
-      answers: game.answers.get(p.socketId) || {},
+      answers: game.answers.get(p.id) || {},
     })),
     gameState: toGameState(game),
   });

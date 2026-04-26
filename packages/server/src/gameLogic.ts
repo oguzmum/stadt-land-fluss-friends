@@ -33,7 +33,7 @@ export function collectAnswers(game: ServerGame): PlayerAnswers[] {
     playerId: p.id,
     playerName: p.name,
     playerEmoji: p.emoji,
-    answers: game.answers.get(p.socketId) || {},
+    answers: game.answers.get(p.id) || {},
   }));
 }
 

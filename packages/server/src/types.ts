@@ -9,6 +9,7 @@ export interface ServerPlayer {
   isConnected: boolean;
   hasSubmitted: boolean;
   hasDone: boolean;
+  disconnectTimer?: ReturnType<typeof setTimeout>;
 }
 
 export interface ServerGame {
