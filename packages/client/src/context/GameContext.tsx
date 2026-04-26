@@ -66,6 +66,7 @@ interface GameContextType {
   nextRound: () => void;
   playAgain: () => void;
   clearError: () => void;
+  finishedNotification: { playerId: string; newEndTime: number; ts: number } | null;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
@@ -79,6 +80,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [finishedNotification, setFinishedNotification] = useState<{ playerId: string; newEndTime: number; ts: number } | null>(null);
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
 
   useEffect(() => {
@@ -132,8 +134,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setScreen('reveal');
     });
 
-    socket.on('player-finished', ({ newEndTime }) => {
+    socket.on('player-finished', ({ playerId, newEndTime }) => {
       setGameState(prev => prev ? { ...prev, endTime: newEndTime } : prev);
+      setFinishedNotification({ playerId, newEndTime, ts: Date.now() });
     });
 
     socket.on('round-ended', ({ gameState }) => {
@@ -243,6 +246,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       createGame, joinGame, updateSettings, startGame,
       submitAnswers, markDone, submitVote, nextCategory, nextRound, playAgain,
       clearError: () => setError(null),
+      finishedNotification,
     }}>
       {children}
     </GameContext.Provider>

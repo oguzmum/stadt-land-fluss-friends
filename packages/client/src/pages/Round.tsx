@@ -6,11 +6,14 @@ import { useGame } from '../context/GameContext';
 import { isAnswerValid } from '@stadt-land-fluss/shared';
 
 export function Round() {
-  const { gameState, submitAnswers, leaveGame } = useGame();
+  const { gameState, submitAnswers, leaveGame, finishedNotification } = useGame();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const endTimeRef = useRef<number>(0);
+  const [banner, setBanner] = useState<{ player: { emoji: string; name: string }; timeLeft: number } | null>(null);
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const bannerHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const letter = gameState?.letter ?? '?';
   const cats = gameState?.settings.categories ?? [];
@@ -44,6 +47,24 @@ export function Round() {
       endTimeRef.current = gameState.endTime;
     }
   }, [gameState?.endTime]);
+
+  useEffect(() => {
+    if (!finishedNotification || !gameState) return;
+    const player = gameState.players.find(p => p.id === finishedNotification.playerId);
+    if (!player) return;
+    const secs = Math.max(0, Math.ceil((finishedNotification.newEndTime - Date.now()) / 1000));
+    setBanner({ player: { emoji: player.emoji, name: player.name }, timeLeft: secs });
+    setBannerVisible(false);
+    // next tick: fade in
+    const fadeIn = setTimeout(() => setBannerVisible(true), 10);
+    // fade out
+    if (bannerHideRef.current) clearTimeout(bannerHideRef.current);
+    bannerHideRef.current = setTimeout(() => {
+      setBannerVisible(false);
+      setTimeout(() => setBanner(null), 300);
+    }, 3500);
+    return () => clearTimeout(fadeIn);
+  }, [finishedNotification]);
 
   const pct = Math.min(100, (timeLeft / roundTime) * 100);
   const barColor = timeLeft < 20 ? T.red : timeLeft < 45 ? T.secondary : T.green;
@@ -122,6 +143,29 @@ export function Round() {
           <Btn onClick={handleSubmit} size="lg" full variant="secondary">
             ✋ Stopp! Fertig
           </Btn>
+        </div>
+      )}
+
+      {banner && (
+        <div style={{
+          position: 'fixed', bottom: 96, left: 20, right: 20, zIndex: 50,
+          background: T.surface, border: `1.5px solid ${T.border}`,
+          borderRadius: 16, padding: '12px 16px',
+          display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          opacity: bannerVisible ? 1 : 0,
+          transform: bannerVisible ? 'translateY(0)' : 'translateY(10px)',
+          transition: 'opacity 0.25s, transform 0.25s',
+        }}>
+          <div style={{ fontSize: 28 }}>✋</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: T.head, fontWeight: 800, fontSize: 15, color: T.text }}>
+              {banner.player.emoji} {banner.player.name} ist fertig!
+            </div>
+            <div style={{ fontSize: 13, color: T.muted, marginTop: 2 }}>
+              Noch ~{banner.timeLeft}s verbleibend
+            </div>
+          </div>
         </div>
       )}
     </Screen>
