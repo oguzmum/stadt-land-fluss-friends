@@ -1,5 +1,7 @@
 # ToDos & Bugs
 
+- [ ] Rename to stadt-land-friends and remove fluss from default categories
+
 ## Bugs
 
 - [x] Answers are not validated against the current letter — players can submit anything
