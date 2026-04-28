@@ -28,7 +28,8 @@ yarn-error.log*
 .LSOverride
 
 # Editors
-.vscode/
+.vscode/*
+!.vscode/launch.json
 .idea/
 *.suo
 *.ntvs*

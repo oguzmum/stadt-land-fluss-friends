@@ -19,6 +19,7 @@ export const DEFAULT_TOTAL_ROUNDS = 3;
 export const MAX_PLAYERS = 10;
 export const ROOM_CODE_LENGTH = 6;
 export const ACCELERATED_TIMER_SECS = 15;
+export const REVEAL_DURATION_MS = 5500; // letter reveal animation + 3-2-1 countdown before round page appears
 
 export const POINTS_UNIQUE = 10;
 export const POINTS_SHARED = 5;

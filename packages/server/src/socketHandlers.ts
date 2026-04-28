@@ -1,6 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@stadt-land-friends/shared';
-import { DEFAULT_CATEGORIES, DEFAULT_ROUND_TIME, DEFAULT_TOTAL_ROUNDS, isAnswerValid } from '@stadt-land-friends/shared';
+import { DEFAULT_CATEGORIES, DEFAULT_ROUND_TIME, DEFAULT_TOTAL_ROUNDS, REVEAL_DURATION_MS, isAnswerValid } from '@stadt-land-friends/shared';
 import * as gameManager from './gameManager';
 import {
   pickLetter,
@@ -256,10 +256,11 @@ function launchRound(io: GameServer, game: ReturnType<typeof gameManager.getGame
   game.currentLetter = letter;
   game.usedLetters.push(letter);
   game.phase = 'playing';
-  game.endTime = Date.now() + game.settings.roundTime * 1000;
+  const totalDuration = (REVEAL_DURATION_MS + game.settings.roundTime * 1000) - 1;
+  game.endTime = Date.now() + totalDuration;
 
   if (game.roundTimer) clearTimeout(game.roundTimer);
-  game.roundTimer = setTimeout(() => endRound(io, game), game.settings.roundTime * 1000);
+  game.roundTimer = setTimeout(() => endRound(io, game), totalDuration);
 
   io.to(game.roomCode).emit('round-started', {
     letter,

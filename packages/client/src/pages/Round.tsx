@@ -29,7 +29,7 @@ export function Round() {
   useEffect(() => {
     if (!gameState?.endTime) return;
     endTimeRef.current = gameState.endTime;
-    setTimeLeft(Math.max(0, Math.ceil((gameState.endTime - Date.now()) / 1000)));
+    setTimeLeft(Math.max(0, Math.ceil((gameState.endTime - Date.now()) / 1000)) - 1);
 
     const interval = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
