@@ -1,6 +1,7 @@
 # ToDos & Bugs
 
-- [ ] Rename to stadt-land-friends and remove fluss from default categories
+- [x] Rename to stadt-land-friends
+- [ ] Remove fluss from default categories
 
 ## Bugs
 
@@ -18,7 +19,7 @@
 
 ### Gameplay
 - [x] Show all answers across all categories in the final score display (added a tab with Points and Answers so players can switch as they wish :D)
-- [X] Keep answers visible on the scoreboard so players can review them before the admin starts the next round
+- [x] Keep answers visible on the scoreboard so players can review them before the admin starts the next round
 - [x] Highlight duplicate answers during voting so players can spot them easily
 - [ ] Show how many players have already submitted during an active round (e.g. "2 / 4 done")
 - [x] Notify all players when someone hits "Done" early (currently only the timer changes)
@@ -41,7 +42,7 @@
 - [x] Reconnect handling — rejoin the active game automatically after phone wakes up or briefly loses connection
 
 ### Deployment
-- [ ] Create a Dockerfile etc. and GitHub Action, so I can let the game run on my Homeserver :D
+- [x] Create a Dockerfile etc. and GitHub Action, so I can let the game run on my Homeserver :D
 
 ### Tests 
 - [ ] Add tests
